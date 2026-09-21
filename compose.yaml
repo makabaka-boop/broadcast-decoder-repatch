@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/app
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # One-shot verification service: runs the pytest suite and exits.
+  verify:
+    build: .
+    command: ["pytest", "-q"]
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
